@@ -289,6 +289,16 @@ private:
     return _task_awaitable<>{std::exchange(self.coro_, {})};
   }
 
+  // Specify basic_task's sender traits
+  //   This is only necessary when basic_task is not generally awaitable
+  //   owing to constraints imposed by its Context parameter.
+  friend constexpr auto tag_invoke(std::execution::get_sender_traits_t, const basic_task&) noexcept
+    -> std::execution::receiver_signatures<
+         std::execution::set_value_t(T),
+         std::execution::set_error_t(std::exception_ptr)> {
+    return {};
+  }
+
   explicit basic_task(__coro::coroutine_handle<promise_type> __coro) noexcept
     : coro_(__coro)
   {}
@@ -298,26 +308,3 @@ private:
 
 template <class T>
   using task = basic_task<T, default_task_context<T>>;
-
-////////////////////////////////////////////////////////////////////////////////
-// Specify basic_task's sender traits
-//   This is only necessary when basic_task is not generally awaitable
-//   owing to constraints imposed by its Context parameter.
-template <bool SendsDone, class... Ts>
-  struct sender_of_traits {
-    template<template<class...> class Tuple, template<class...> class Variant>
-      using value_types = Variant<Tuple<Ts...>>;
-    template<template<class...> class Variant>
-      using error_types = Variant<std::exception_ptr>;
-    static constexpr bool sends_done = SendsDone;
-  };
-
-template <bool SendsDone>
-  struct sender_of_traits<SendsDone, void>
-    : sender_of_traits<SendsDone> {};
-
-namespace std::execution {
-  template <class T, class Context>
-    struct sender_traits<::basic_task<T, Context>>
-      : ::sender_of_traits<false, T> {};
-}
