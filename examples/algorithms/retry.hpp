@@ -97,7 +97,7 @@ struct _retry_sender {
 
   template <std::execution::receiver R>
   friend constexpr auto tag_invoke(std::execution::get_sender_traits_t, const _retry_sender&, R&&) noexcept
-    -> std::invoke_result_t<std::execution::get_sender_traits_t, const S&, R> {
+    -> std::execution::sender_traits<const S&, R> {
     return {};
   }
 };
