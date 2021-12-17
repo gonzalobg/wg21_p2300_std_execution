@@ -2760,9 +2760,9 @@ namespace std::execution {
             return ((_Tag&&) __tag)(__self.__sndr_, (_As&&) __as...);
           }
 
-          template <class _Receiver>
-          friend constexpr auto tag_invoke(get_sender_traits_t, const __sender&, _Receiver&&) noexcept
-              -> invoke_result_t<get_sender_traits_t, const _Sender&, __receiver_ref<__x<decay_t<_Receiver>>>> {
+          template <__decays_to<__sender> _Self, class _Receiver>
+          friend constexpr auto tag_invoke(get_sender_traits_t, _Self&&, _Receiver&&) noexcept
+              -> sender_traits<__member_t<_Self, _Sender>, __receiver_ref<__x<decay_t<_Receiver>>>> {
             return {};
           }
         };
