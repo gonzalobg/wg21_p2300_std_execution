@@ -236,14 +236,16 @@ namespace std::execution {
   struct sender_traits
     : __call_result_t<get_sender_traits_t, _Sender, _Receiver> {};
 
+  template <class _Sender, class _Receiver = __default_context>
+    concept __valid_sender_traits =
+      !derived_from<sender_traits<_Sender, _Receiver>, __no_sender_traits>;
+
   /////////////////////////////////////////////////////////////////////////////
   // [execution.senders]
   template <class _Sender>
     concept sender =
       move_constructible<remove_cvref_t<_Sender>> &&
-      requires (_Sender&& __sndr) {
-        { get_sender_traits((_Sender&&) __sndr) } -> __none_of<__no_sender_traits>;
-      };
+      __valid_sender_traits<_Sender>;
 
   template <class _Sender, class _Receiver = __default_context>
     concept typed_sender =
