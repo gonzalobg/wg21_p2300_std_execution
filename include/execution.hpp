@@ -1152,35 +1152,12 @@ namespace std::execution {
           }
         };
 
-      template <template <class...> class, class, class...>
-        __types<exception_ptr> __test();
-
-      // The requirement here could cause a recursive instantiation of
-      // sender_traits, in which case the first __test overload should be
-      // selected. (BUGBUG is this required by the standard?)
-      template <template <class...> class, class _Receiver, class... _Ts>
-        __types<> __test() requires nothrow_receiver_of<_Receiver, _Ts...>;
-
-      template <class _Receiver, class... _Ts>
-        struct __value_traits {
-          template <template <class...> class _Tuple, template <class...> class _Variant>
-            using value_types = _Variant<_Tuple<_Ts...>>;
-
-          template <template <class...> class _Variant>
-            using error_types =
-              __mapply<
-                __q<_Variant>,
-                decltype(__impl::__test<_Variant, _Receiver, _Ts...>())>;
-
-          static constexpr bool sends_done = false;
-        };
-
       template <class _Tag, class... _Ts, class _Receiver>
       receiver_signatures<_Tag(_Ts...)>
       tag_invoke(get_sender_traits_t, const __sender<_Tag, _Ts...>&, _Receiver&&) noexcept;
 
       template <class... _Ts, class _Receiver>
-      __value_traits<_Receiver, _Ts...>
+      receiver_signatures<set_value_t(_Ts...), set_error_t(exception_ptr)>
       tag_invoke(get_sender_traits_t, const __sender<set_value_t, _Ts...>&, _Receiver&&) noexcept;
     } // namespace __impl
 
@@ -2611,9 +2588,13 @@ namespace std::execution {
             return ((_Tag&&) __tag)(__self.__sndr_, (_As&&) __as...);
           }
 
-          template <class _Receiver>
-          friend constexpr auto tag_invoke(get_sender_traits_t, const __sender&, _Receiver&&) noexcept
-              -> invoke_result_t<get_sender_traits_t, const _Sender&, _Receiver> {
+          template <class _Self, class _Receiver>
+            using __receiver1_t =
+              __receiver1<_SchedulerId, __x<__member_t<_Self, _Sender>>, __x<decay_t<_Receiver>>>;
+
+          template <__decays_to<__sender> _Self, class _Receiver>
+          friend constexpr auto tag_invoke(get_sender_traits_t, _Self&&, _Receiver&&) noexcept
+              -> sender_traits<__member_t<_Self, _Sender>, __receiver1_t<_Self, _Receiver>> {
             return {};
           }
         };
@@ -3316,6 +3297,48 @@ namespace std::execution {
       }
     } transfer_when_all_with_variant {};
   } // namespace __when_all
+
+  inline namespace __read_ {
+    namespace __impl {
+      template <class _Tag, class _ReceiverId>
+        struct __operation {
+          __t<_ReceiverId> __rcvr_;
+          friend void tag_invoke(start_t, __operation& __self) noexcept try {
+            set_value(std::move(__self.__rcvr_), _Tag{}(std::as_const(__self.__rcvr_)));
+          } catch(...) {
+            set_error(std::move(__self.__rcvr_), current_exception());
+          }
+        };
+
+      template <class _Tag>
+        struct __sender {
+          template <class _Receiver>
+            requires invocable<_Tag, __cref_t<_Receiver>> &&
+              receiver_of<_Receiver, invoke_result_t<_Tag, __cref_t<_Receiver>>>
+          friend auto tag_invoke(connect_t, __sender, _Receiver&& __rcvr)
+            noexcept(is_nothrow_constructible_v<decay_t<_Receiver>, _Receiver>)
+            -> __operation<_Tag, __x<decay_t<_Receiver>>> {
+            return {(_Receiver&&) __rcvr};
+          }
+
+          friend __ tag_invoke(get_sender_traits_t, __sender, auto&&) noexcept;
+
+          template <class _Receiver>
+            requires invocable<_Tag, __cref_t<_Receiver>>
+          friend auto tag_invoke(get_sender_traits_t, __sender, _Receiver&&) noexcept
+            -> receiver_signatures<
+                set_value_t(invoke_result_t<_Tag, __cref_t<_Receiver>>),
+                set_error_t(exception_ptr)>;
+        };
+    } // namespace __impl
+
+    inline constexpr struct __read_t {
+      template <class _Tag>
+      constexpr __impl::__sender<_Tag> operator()(_Tag) const noexcept {
+        return {};
+      }
+    } __read {};
+  } // namespace __read_
 } // namespace std::execution
 
 namespace std::this_thread {
@@ -3369,7 +3392,7 @@ namespace std::this_thread {
           }
           friend execution::run_loop::__scheduler
           tag_invoke(execution::get_scheduler_t, const __receiver& __rcvr) noexcept {
-            return __rcvr.__loop_.get_scheduler();
+            return __rcvr.__loop_->get_scheduler();
           }
         };
 
