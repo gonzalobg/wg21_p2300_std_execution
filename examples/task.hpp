@@ -292,7 +292,10 @@ private:
   // Specify basic_task's sender traits
   //   This is only necessary when basic_task is not generally awaitable
   //   owing to constraints imposed by its Context parameter.
-  friend constexpr auto tag_invoke(std::execution::get_sender_traits_t, const basic_task&) noexcept
+  friend constexpr auto tag_invoke(
+      std::execution::get_sender_traits_t,
+      const basic_task&,
+      std::execution::receiver auto&&) noexcept
     -> std::execution::receiver_signatures<
          std::execution::set_value_t(T),
          std::execution::set_error_t(std::exception_ptr)> {

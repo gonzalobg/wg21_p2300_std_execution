@@ -19,6 +19,10 @@
 
 #include <functional>
 
+// A std::declval that doesn't instantiate templates:
+#define _DECLVAL(...) \
+  ((static_cast<__VA_ARGS__(*)()noexcept>(0))())
+
 namespace std {
   // [func.tag_invoke], tag_invoke
   inline namespace __tag_invoke {
@@ -46,10 +50,20 @@ namespace std {
   template<auto& _Tag>
   using tag_t = decay_t<decltype(_Tag)>;
 
+  template<class _Tag, class... _Args>
+  using tag_invoke_result_t =
+    decltype(tag_invoke(_DECLVAL(_Tag&&), _DECLVAL(_Args&&)...));
+
+  template<class _Tag, class... _Args>
+  struct tag_invoke_result {
+    using type = tag_invoke_result_t<_Tag, _Args...>;
+  };
+
   // TODO: Don't require tag_invocable to subsume invocable.
   // std::invoke is more expensive at compile time than necessary.
   template<class _Tag, class... _Args>
   concept tag_invocable =
+    requires { typename tag_invoke_result_t<_Tag, _Args...>; } && // NOT TO SPEC
     invocable<decltype(tag_invoke), _Tag, _Args...>;
 
   // NOT TO SPEC: nothrow_tag_invocable subsumes tag_invocable
@@ -57,10 +71,4 @@ namespace std {
   concept nothrow_tag_invocable =
     tag_invocable<_Tag, _Args...> &&
     is_nothrow_invocable_v<decltype(tag_invoke), _Tag, _Args...>;
-
-  template<class _Tag, class... _Args>
-  using tag_invoke_result = invoke_result<decltype(tag_invoke), _Tag, _Args...>;
-
-  template<class _Tag, class... _Args>
-  using tag_invoke_result_t = invoke_result_t<decltype(tag_invoke), _Tag, _Args...>;
 }

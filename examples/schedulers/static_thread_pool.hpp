@@ -51,12 +51,12 @@ namespace example {
       template <typename ReceiverId>
         friend struct operation;
 
-      using sender_traits = std::execution::receiver_signatures<
+      using traits = std::execution::receiver_signatures<
           std::execution::set_value_t(),
           std::execution::set_error_t(std::exception_ptr),
           std::execution::set_done_t()>;
 
-      class sender : public sender_traits {
+      class sender : public traits {
         template <typename Receiver>
         operation<std::__x<std::decay_t<Receiver>>>
         make_operation_(Receiver&& r) const {

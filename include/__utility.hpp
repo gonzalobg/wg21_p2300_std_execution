@@ -95,16 +95,27 @@ namespace std {
 
   template <template <class...> class _T, class... _Args>
     concept __valid = requires { typename _T<_Args...>; };
-  template <template<class...> class _T>
+
+  template <template <class...> class _T>
     struct __defer {
-      template <class... _Args> requires __valid<_T, _Args...>
+      template <class... _Args>
+          requires __valid<_T, _Args...>
         struct __f_ { using type = _T<_Args...>; };
-      template <class _A> requires __valid<_T, _A>
+      template <class _A>
+          requires requires { typename _T<_A>; }
         struct __f_<_A> { using type = _T<_A>; };
-      template <class _A, class _B> requires __valid<_T, _A, _B>
+      template <class _A, class _B>
+          requires requires { typename _T<_A, _B>; }
         struct __f_<_A, _B> { using type = _T<_A, _B>; };
-      template <class _A, class _B, class _C> requires __valid<_T, _A, _B, _C>
+      template <class _A, class _B, class _C>
+          requires requires { typename _T<_A, _B, _C>; }
         struct __f_<_A, _B, _C> { using type = _T<_A, _B, _C>; };
+      template <class _A, class _B, class _C, class _D>
+          requires requires { typename _T<_A, _B, _C, _D>; }
+        struct __f_<_A, _B, _C, _D> { using type = _T<_A, _B, _C, _D>; };
+      template <class _A, class _B, class _C, class _D, class _E>
+          requires requires { typename _T<_A, _B, _C, _D, _E>; }
+        struct __f_<_A, _B, _C, _D, _E> { using type = _T<_A, _B, _C, _D, _E>; };
       template <class... _Args>
         using __f = __t<__f_<_Args...>>;
     };
@@ -143,7 +154,7 @@ namespace std {
       template <class...>
         struct __f_ {};
       template <template <class...> class _A, class... _As>
-          requires __valid<__minvoke, _Continuation, _As...>
+          requires requires { typename __minvoke<_Continuation, _As...>; }
         struct __f_<_A<_As...>> {
           using type = __minvoke<_Continuation, _As...>;
         };
@@ -165,6 +176,8 @@ namespace std {
                 class... _Tail>
         struct __f_<_A<_As...>, _B<_Bs...>, _C<_Cs...>, _D<_Ds...>, _Tail...>
           : __f_<__types<_As..., _Bs..., _Cs..., _Ds...>, _Tail...> {};
+      template <>
+        struct __f_<> : __f_<__types<>> {};
       template <class... _Args>
         using __f = __t<__f_<_Args...>>;
     };
@@ -251,6 +264,18 @@ namespace std {
         using __f = _Fn<_Front..., _Args...>;
     };
 
+  template <template<class...> class _Fn, class... _Front>
+    struct __bind_front_q1 {
+      template <class _A>
+        using __f = _Fn<_Front..., _A>;
+    };
+
+  template <template<class...> class _Fn, class... _Front>
+    struct __bind_front_q2 {
+      template <class _A, class _B>
+        using __f = _Fn<_Front..., _A, _B>;
+    };
+
   template <class _Fn, class... _Front>
     using __bind_front = __bind_front_q<_Fn::template __f, _Front...>;
 
@@ -258,6 +283,18 @@ namespace std {
     struct __bind_back_q {
       template <class... _Args>
         using __f = _Fn<_Args..., _Back...>;
+    };
+
+  template <template<class...> class _Fn, class... _Back>
+    struct __bind_back_q1 {
+      template <class _A>
+        using __f = _Fn<_A, _Back...>;
+    };
+
+  template <template<class...> class _Fn, class... _Back>
+    struct __bind_back_q2 {
+      template <class _A, class _B>
+        using __f = _Fn<_A, _B, _Back...>;
     };
 
   template <class _Fn, class... _Back>
@@ -270,16 +307,26 @@ namespace std {
           __minvoke<_Continuation, __if<is_same<_Args, _Old>, _New, _Args>...>;
     };
 
-  // For copying cvref from one type to another:
+  template <class _T>
+    struct __contains {
+      template <class... _Args>
+        using __f = __bool<(__v<is_same<_T, _Args>> ||...)>;
+    };
+
   template <class _T>
   _T&& __declval() noexcept;
 
+  // For copying cvref from one type to another:
   template <class _Member, class _Self>
   _Member _Self::*__memptr(const _Self&);
 
   template <typename _Self, typename _Member>
   using __member_t = decltype(
       (__declval<_Self>() .* __memptr<_Member>(__declval<_Self>())));
+
+  template <class _Fun, class... _Args>
+  using __call_result_t =
+    decltype(__declval<_Fun>()(__declval<_Args>()...));
 
   template <class... _As>
       requires (sizeof...(_As) != 0)
