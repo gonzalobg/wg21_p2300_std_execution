@@ -1592,7 +1592,8 @@ namespace std::execution {
   inline namespace __then {
     namespace __impl {
       template <class _ReceiverId, class _Fun>
-        class __receiver : receiver_adaptor<__receiver<_ReceiverId, _Fun>, __t<_ReceiverId>> {
+        class __receiver
+          : receiver_adaptor<__receiver<_ReceiverId, _Fun>, __t<_ReceiverId>> {
           using _Receiver = __t<_ReceiverId>;
           friend receiver_adaptor<__receiver, _Receiver>;
           [[no_unique_address]] _Fun __f_;
@@ -2023,7 +2024,6 @@ namespace std::execution {
               requires __applyable<_Fun, __which_tuple_t<_As...>&> &&
                 sender_to<__apply_result_t<_Fun, __which_tuple_t<_As...>&>, _Receiver>
             friend void tag_invoke(_Tag, __receiver&& __self, _As&&... __as) noexcept try {
-              static_assert(same_as<__types<_As...>, __types<int>>);
               using __tuple_t = __which_tuple_t<_As...>;
               using __op_state_t = __mapply<__q<__op_state_for_t>, __tuple_t>;
               auto& __args =
@@ -2656,98 +2656,116 @@ namespace std::execution {
   // [execution.senders.adaptors.on]
   inline namespace __on {
     namespace __impl {
+      template <class _SchedulerId, class _SenderId, class _ReceiverId>
+        struct __operation;
+
+      template <class _SchedulerId, class _SenderId, class _ReceiverId>
+        struct __receiver_ref
+          : receiver_adaptor<__receiver_ref<_SchedulerId, _SenderId, _ReceiverId>> {
+          using _Scheduler = __t<_SchedulerId>;
+          using _Sender = __t<_SenderId>;
+          using _Receiver = __t<_ReceiverId>;
+          __operation<_SchedulerId, _SenderId, _ReceiverId>* __op_state_;
+          _Receiver&& base() && noexcept {
+            return (_Receiver&&) __op_state_->__rcvr_;
+          }
+          const _Receiver& base() const & noexcept {
+            return __op_state_->__rcvr_;
+          }
+          friend _Scheduler tag_invoke(get_scheduler_t,
+                                      const __receiver_ref& __self) noexcept {
+            return __self.__op_state_->__scheduler_;
+          }
+        };
+
+      template <class _SchedulerId, class _SenderId, class _ReceiverId>
+        struct __receiver
+          : receiver_adaptor<__receiver<_SchedulerId, _SenderId, _ReceiverId>> {
+          using _Scheduler = __t<_SchedulerId>;
+          using _Sender = __t<_SenderId>;
+          using _Receiver = __t<_ReceiverId>;
+          using __receiver_ref_t =
+            __receiver_ref<_SchedulerId, _SenderId, _ReceiverId>;
+          __operation<_SchedulerId, _SenderId, _ReceiverId>* __op_state_;
+          _Receiver&& base() && noexcept {
+            return (_Receiver&&) __op_state_->__rcvr_;
+          }
+          const _Receiver& base() const & noexcept {
+            return __op_state_->__rcvr_;
+          }
+
+          void set_value() && noexcept {
+            // cache this locally since *this is going bye-bye.
+            auto* __op_state = __op_state_;
+            try {
+              // This line will invalidate *this:
+              start(__op_state->__data_.template emplace<1>(__conv{
+                [__op_state] {
+                  return connect((_Sender&&) __op_state->__sndr_,
+                                  __receiver_ref_t{{}, __op_state});
+                }
+              }));
+            } catch(...) {
+              set_error((_Receiver&&) __op_state->__rcvr_,
+                        current_exception());
+            }
+          }
+        };
+
+      template <class _SchedulerId, class _SenderId, class _ReceiverId>
+        struct __operation {
+          using _Scheduler = __t<_SchedulerId>;
+          using _Sender = __t<_SenderId>;
+          using _Receiver = __t<_ReceiverId>;
+          using __receiver_t = __receiver<_SchedulerId, _SenderId, _ReceiverId>;
+          using __receiver_ref_t = __receiver_ref<_SchedulerId, _SenderId, _ReceiverId>;
+
+          friend void tag_invoke(start_t, __operation& __self) noexcept {
+            start(std::get<0>(__self.__data_));
+          }
+
+          template <class _Sender2, class _Receiver2>
+          __operation(_Scheduler __sched, _Sender2&& __sndr, _Receiver2&& __rcvr)
+            : __data_{in_place_index<0>, __conv{[&, this]{
+                return connect(schedule(__sched),
+                                __receiver_t{{}, this});
+              }}}
+            , __scheduler_((_Scheduler&&) __sched)
+            , __sndr_((_Sender2&&) __sndr)
+            , __rcvr_((_Receiver2&&) __rcvr) {}
+
+          variant<
+              connect_result_t<schedule_result_t<_Scheduler>, __receiver_t>,
+              connect_result_t<_Sender, __receiver_ref_t>> __data_;
+          _Scheduler __scheduler_;
+          _Sender __sndr_;
+          _Receiver __rcvr_;
+        };
+
       template <class _SchedulerId, class _SenderId>
         struct __sender {
           using _Scheduler = __t<_SchedulerId>;
           using _Sender = __t<_SenderId>;
+          template <class _ReceiverId>
+            using __receiver_ref_t =
+              __receiver_ref<_SchedulerId, _SenderId, _ReceiverId>;
+          template <class _ReceiverId>
+            using __receiver_t =
+              __receiver<_SchedulerId, _SenderId, _ReceiverId>;
+          template <class _ReceiverId>
+            using __operation_t =
+              __operation<_SchedulerId, _SenderId, _ReceiverId>;
 
           _Scheduler __scheduler_;
           _Sender __sndr_;
 
-          template <class _ReceiverId>
-            struct __operation;
-
-          template <class _ReceiverId>
-            struct __receiver_ref
-              : receiver_adaptor<__receiver_ref<_ReceiverId>> {
-              using _Receiver = __t<_ReceiverId>;
-              __operation<_ReceiverId>* __op_state_;
-              _Receiver&& base() && noexcept {
-                return (_Receiver&&) __op_state_->__rcvr_;
-              }
-              const _Receiver& base() const & noexcept {
-                return __op_state_->__rcvr_;
-              }
-              friend _Scheduler tag_invoke(get_scheduler_t,
-                                          const __receiver_ref& __self) noexcept {
-                return __self.__op_state_->__scheduler_;
-              }
-            };
-
-          template <class _ReceiverId>
-            struct __receiver : receiver_adaptor<__receiver<_ReceiverId>> {
-              using _Receiver = __t<_ReceiverId>;
-              __operation<_ReceiverId>* __op_state_;
-              _Receiver&& base() && noexcept {
-                return (_Receiver&&) __op_state_->__rcvr_;
-              }
-              const _Receiver& base() const & noexcept {
-                return __op_state_->__rcvr_;
-              }
-
-              void set_value() && noexcept {
-                // cache this locally since *this is going bye-bye.
-                auto* __op_state = __op_state_;
-                try {
-                  // This line will invalidate *this:
-                  start(__op_state->__data_.template emplace<1>(__conv{
-                    [__op_state] {
-                      return connect((_Sender&&) __op_state->__sndr_,
-                                     __receiver_ref<_ReceiverId>{{}, __op_state});
-                    }
-                  }));
-                } catch(...) {
-                  set_error((_Receiver&&) __op_state->__rcvr_,
-                            current_exception());
-                }
-              }
-            };
-
-          template <class _ReceiverId>
-            struct __operation {
-              using _Receiver = __t<_ReceiverId>;
-
-              friend void tag_invoke(start_t, __operation& __self) noexcept {
-                start(std::get<0>(__self.__data_));
-              }
-
-              template <class _Sender2, class _Receiver2>
-              __operation(_Scheduler __sched, _Sender2&& __sndr, _Receiver2&& __rcvr)
-                : __data_{in_place_index<0>, __conv{[&, this]{
-                    return connect(schedule(__sched),
-                                   __receiver<_ReceiverId>{{}, this});
-                  }}}
-                , __scheduler_((_Scheduler&&) __sched)
-                , __sndr_((_Sender2&&) __sndr)
-                , __rcvr_((_Receiver2&&) __rcvr) {}
-
-              variant<
-                  connect_result_t<schedule_result_t<_Scheduler>,
-                                   __receiver<_ReceiverId>>,
-                  connect_result_t<_Sender,
-                                   __receiver_ref<_ReceiverId>>> __data_;
-              _Scheduler __scheduler_;
-              _Sender __sndr_;
-              _Receiver __rcvr_;
-            };
-
           template <__decays_to<__sender> _Self, receiver _Receiver>
             requires constructible_from<_Sender, __member_t<_Self, _Sender>> &&
               sender_to<schedule_result_t<_Scheduler>,
-                        __receiver<__x<decay_t<_Receiver>>>> &&
-              sender_to<_Sender, __receiver_ref<__x<decay_t<_Receiver>>>>
+                        __receiver_t<__x<decay_t<_Receiver>>>> &&
+              sender_to<_Sender, __receiver_ref_t<__x<decay_t<_Receiver>>>>
           friend auto tag_invoke(connect_t, _Self&& __self, _Receiver&& __rcvr)
-            -> __operation<__x<decay_t<_Receiver>>> {
+            -> __operation_t<__x<decay_t<_Receiver>>> {
             return {((_Self&&) __self).__scheduler_,
                     ((_Self&&) __self).__sndr_,
                     (_Receiver&&) __rcvr};
@@ -2762,7 +2780,7 @@ namespace std::execution {
 
           template <__decays_to<__sender> _Self, class _Receiver>
           friend constexpr auto tag_invoke(get_sender_traits_t, _Self&&, _Receiver&&) noexcept
-              -> sender_traits<__member_t<_Self, _Sender>, __receiver_ref<__x<decay_t<_Receiver>>>> {
+            -> sender_traits<__member_t<_Self, _Sender>, __receiver_ref_t<__x<decay_t<_Receiver>>>> {
             return {};
           }
         };

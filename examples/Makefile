@@ -33,5 +33,5 @@ on_transfer: $(BUILDDIR)/on_transfer.o
 .PHONY: clean
 
 clean:
-	rm $(BUILDDIR)/*
+	rm -f $(BUILDDIR)/*
 	rmdir $(BUILDDIR)

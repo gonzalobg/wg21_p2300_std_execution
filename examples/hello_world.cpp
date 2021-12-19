@@ -23,6 +23,8 @@
 using namespace std::execution;
 using std::this_thread::sync_wait;
 
+template <class T> struct undef;
+
 int main() {
   example::static_thread_pool ctx{8};
   scheduler auto sch = ctx.get_scheduler();                               // 1
@@ -43,4 +45,8 @@ int main() {
 
   auto x = schedule_from(sch, just(42));
   sync_wait(std::move(x));
+
+  // auto y = on(sch, just(1,2,3) | then([](int,int,int){return 42;}));
+  // using Y = decltype(y);
+  // undef<value_types_of_t<Y>> u;
 }
