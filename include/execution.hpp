@@ -408,9 +408,9 @@ namespace std::execution {
         constexpr bool operator()(_Tag __tag) const noexcept {
           if constexpr (tag_invocable<forwarding_receiver_query_t, _Tag>) {
             return tag_invoke(*this, (_Tag&&) __tag);
-          } else {
-            return __none_of<_Tag, set_value_t, set_error_t, set_done_t>;
-          }
+          } 
+
+          return __none_of<_Tag, set_value_t, set_error_t, set_done_t>;
         }
       };
     }
@@ -420,8 +420,8 @@ namespace std::execution {
 
     template <class _Tag>
       concept __receiver_query =
-        requires (_Tag __tag) {
-          requires forwarding_receiver_query((_Tag&&) __tag);
+        requires {
+          requires forwarding_receiver_query(_Tag{});
         };
   } // namespace __receiver_queries
 
@@ -2161,6 +2161,10 @@ namespace std::execution {
 
           static constexpr bool sends_done = true;
 
+          explicit __schedule_task(run_loop* __loop) noexcept
+            : __loop_(__loop)
+          {}
+
          private:
           friend __scheduler;
 
@@ -2175,10 +2179,6 @@ namespace std::execution {
           tag_invoke(get_completion_scheduler_t<_CPO>, const __schedule_task& __self) noexcept {
             return __scheduler{__self.__loop_};
           }
-
-          explicit __schedule_task(run_loop* __loop) noexcept
-            : __loop_(__loop)
-          {}
 
           run_loop* const __loop_;
         };

@@ -213,6 +213,11 @@ namespace std {
             __minvoke<__right_fold<__types<>, __push_back_unique<>>, _Ts...>>;
     };
 
+  template <template<class...> class List>
+    struct __empty {
+      using __f = List<>;
+    };
+
   template <class...>
     struct __compose {};
 
