@@ -1283,7 +1283,7 @@ namespace std::execution {
               sender_to<__member_t<_Self, _Base>, _Receiver>
           friend decltype(auto) tag_invoke(connect_t, _Self&& __self, _Receiver&& __rcvr)
             noexcept(__has_nothrow_connect<__member_t<_Self, _Base>, _Receiver>) {
-            execution::connect(((_Self&&) __self).base(), (_Receiver&&) __rcvr);
+            execution::connect(((__t&&) __self).base(), (_Receiver&&) __rcvr);
           }
 
           template <__sender_query _Tag, class... _As>
