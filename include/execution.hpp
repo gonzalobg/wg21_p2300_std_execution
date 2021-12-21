@@ -684,9 +684,9 @@ namespace std::execution {
         constexpr bool operator()(_Tag __tag) const noexcept {
           if constexpr (tag_invocable<forwarding_sender_query_t, _Tag>) {
             return tag_invoke(*this, (_Tag&&) __tag);
-          } else {
-            return false;
-          }
+          } 
+
+          return false;
         }
       };
     } // namespace __impl
@@ -701,8 +701,8 @@ namespace std::execution {
 
     template <class _Tag>
       concept __sender_query =
-        requires (_Tag __tag) {
-          requires forwarding_sender_query((_Tag&&) __tag);
+        requires {
+          requires forwarding_sender_query(_Tag{});
         };
   } // namespace __sender_queries
 
@@ -1361,7 +1361,7 @@ namespace std::execution {
           template <class _D = _Derived, class... _As>
             requires requires {typename _D::set_value;} &&
               receiver_of<__base_t<_D>, _As...>
-          friend void tag_invoke(set_value_t, _Derived&& __self, _As&&... __as)
+          friend void tag_invoke(set_value_t, _Derived&& __self, _As&&... __as) 
             noexcept(nothrow_receiver_of<__base_t<_D>, _As...>) {
             execution::set_value(__get_base((_Derived&&) __self), (_As&&) __as...);
           }
