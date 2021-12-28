@@ -2430,7 +2430,7 @@ namespace std::execution {
           template <__receiver_query _Tag, class... _Args>
             requires invocable<_Tag, const _Receiver&, _Args...>
           friend decltype(auto) tag_invoke(_Tag tag, const __receiver1& __self, _Args&&... __args)
-            noexcept(is_nothrow_invocable_v<_Tag, const _Receiver&, _Args...>) {
+            noexcept /*nvbugs/3482992 (is_nothrow_invocable_v<_Tag, const _Receiver&, _Args...>)*/ {
             return ((_Tag&&) tag)(as_const(__self.__op_state_->__rcvr_), (_Args&&) __args...);
           }
         };
