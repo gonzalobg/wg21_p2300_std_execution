@@ -684,7 +684,7 @@ namespace std::execution {
         constexpr bool operator()(_Tag __tag) const noexcept {
           if constexpr (tag_invocable<forwarding_sender_query_t, _Tag>) {
             return tag_invoke(*this, (_Tag&&) __tag);
-          } 
+          }
 
           return false;
         }
@@ -1288,12 +1288,12 @@ namespace std::execution {
 
           template <__sender_query _Tag, class... _As>
             requires invocable<_Tag, const _Base&, _As...>
-          friend decltype(auto) tag_invoke(_Tag __tag, const _Derived& __self, _As&&... __as)
-            noexcept(is_nothrow_invocable_v<_Tag, const _Base&, _As...>) {
+          friend decltype(auto) tag_invoke(_Tag __tag, const __t& __self, _As&&... __as)
+            noexcept /*nvbugs/3482992 (is_nothrow_invocable_v<_Tag, const _Base&, _As...>)*/ {
             return ((_Tag&&) __tag)(__self.base(), (_As&&) __as...);
           }
 
-         protected:
+         public: // Quick fix, should be protected
           using __adaptor_base<_Base>::base;
 
          public:
@@ -1362,7 +1362,7 @@ namespace std::execution {
             requires requires {typename _D::set_value;} &&
               receiver_of<__base_t<_D>, _As...>
           friend void tag_invoke(set_value_t, _Derived&& __self, _As&&... __as) 
-            noexcept(nothrow_receiver_of<__base_t<_D>, _As...>) {
+            noexcept /*nvbugs/3482992 (nothrow_receiver_of<__base_t<_D>, _As...>)*/ {
             execution::set_value(__get_base((_Derived&&) __self), (_As&&) __as...);
           }
 
@@ -2483,7 +2483,7 @@ namespace std::execution {
           template <__sender_query _Tag, class... _As>
             requires invocable<_Tag, const _Sender&, _As...>
           friend decltype(auto) tag_invoke(_Tag __tag, const __sender& __self, _As&&... __as)
-            noexcept(is_nothrow_invocable_v<_Tag, const _Sender&, _As...>) {
+            noexcept { // https://nvbugs/3482992 (is_nothrow_invocable_v<_Tag, const _Sender&, _As...>) {
             return ((_Tag&&) __tag)(__self.__sndr_, (_As&&) __as...);
           }
         };
