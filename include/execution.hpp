@@ -1072,14 +1072,14 @@ namespace std::execution {
           template <receiver_of<_Ts...> _Receiver>
             requires (copy_constructible<_Ts> &&...)
           friend auto tag_invoke(connect_t, const __sender& __sndr, _Receiver&& __rcvr)
-            noexcept((is_nothrow_copy_constructible_v<_Ts> &&...))
+            noexcept//((is_nothrow_copy_constructible_v<_Ts> &&...))
             -> __operation<__x<remove_cvref_t<_Receiver>>> {
             return {__sndr.__vals_, (_Receiver&&) __rcvr};
           }
 
           template <receiver_of<_Ts...> _Receiver>
           friend auto tag_invoke(connect_t, __sender&& __sndr, _Receiver&& __rcvr)
-            noexcept((is_nothrow_move_constructible_v<_Ts> &&...))
+            noexcept//((is_nothrow_move_constructible_v<_Ts> &&...))
             -> __operation<__x<remove_cvref_t<_Receiver>>> {
             return {((__sender&&) __sndr).__vals_, (_Receiver&&) __rcvr};
           }
@@ -2270,7 +2270,7 @@ namespace std::execution {
 
   /////////////////////////////////////////////////////////////////////////////
   // [execution.senders.adaptors.schedule_from]
-  inline namespace __schedule_from {
+  namespace __schedule_from {
     namespace __impl {
       // Compute a data structure to store the source sender's completion.
       // The primary template assumes a non-typed sender, which uses type
