@@ -965,7 +965,8 @@ namespace std::execution {
 
     template <class _Tag, class... _Args>
       struct __completion<_Tag(_Args...)> {
-        friend void tag_invoke(_Tag, __completion&&, _Args&&...) noexcept;
+        template<class _T, class... _As>
+        friend void tag_invoke(_T, __completion&&, _As&&...) noexcept;
       };
 
     template <class _Env, class _Sigs>
@@ -974,15 +975,20 @@ namespace std::execution {
     template <class _Env, class... _Sigs>
       struct __debug_receiver<_Env, completion_signatures<_Sigs...>>
         : __completion<_Sigs>... {
-        friend __debug_env_t<_Env> tag_invoke(get_env_t, __debug_receiver) noexcept;
+        template<class _E>
+        friend __debug_env_t<_E> tag_invoke(get_env_t, __debug_receiver) noexcept;
       };
 
     template <class _Env>
       struct __any_debug_receiver {
-        friend void tag_invoke(set_value_t, __any_debug_receiver&&, auto&&...) noexcept;
-        friend void tag_invoke(set_error_t, __any_debug_receiver&&, auto&&) noexcept;
-        friend void tag_invoke(set_stopped_t, __any_debug_receiver&&) noexcept;
-        friend __debug_env_t<_Env> tag_invoke(get_env_t, __any_debug_receiver) noexcept;
+        template <class _E>
+        friend void tag_invoke(set_value_t, __any_debug_receiver<_E>&&, auto&&...) noexcept;
+        template <class _E>
+        friend void tag_invoke(set_error_t, __any_debug_receiver<_E>&&, auto&&) noexcept;
+        template <class _E>
+        friend void tag_invoke(set_stopped_t, __any_debug_receiver<_E>&&) noexcept;
+        template <class _E>
+        friend __debug_env_t<_E> tag_invoke(get_env_t, __any_debug_receiver<_E>) noexcept;
       };
 
     struct connect_t;
