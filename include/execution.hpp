@@ -1485,12 +1485,33 @@ namespace std::execution {
   /////////////////////////////////////////////////////////////////////////////
   // [execution.senders.factories]
   namespace __just {
+
+#if !defined(__clangc__)
+    // See next ifdef:
+    template <class _CPO, class... _Ts>
+    using completion_signatures_ = completion_signatures<_CPO(_Ts...)>;
+#endif
+
     template <class _CPO, class... _Ts>
       struct __sender {
         tuple<_Ts...> __vals_;
 
+#if defined(__clangc__)
+        // According to http://eel.is/c++draft/class.member.lookup#6
+        //
+        // [class.member.lookup]/p6: "If it [the result of the search]
+        // differs from the result of a search in T for N from
+        // immediately after the class-specifier of T, the program is
+        // ill-formed, no diagnostic required."  A class definition is
+        // not allowed to change the meaning of a name that was already
+        // used earlier in the class definition.
+        //
+        // this program is ill-formed. clang should reject this, but it does not cause its broken:
+        // https://bugs.llvm.org/show_bug.cgi?id=51934
         using completion_signatures = completion_signatures<_CPO(_Ts...)>;
-
+#else
+        using completion_signatures = completion_signatures_<_CPO, _Ts...>;
+#endif
         template <class _ReceiverId>
           struct __operation {
             using _Receiver = __t<_ReceiverId>;
@@ -2215,6 +2236,12 @@ namespace std::execution {
       __notify_fn* __notify_{};
     };
 
+#if !defined(__clangc__)
+    // See below
+    template <class T>
+    using __receiver_ = __receiver<T>;
+#endif
+
     template <class _SenderId>
       struct __sh_state {
         using _Sender = __t<_SenderId>;
@@ -2242,7 +2269,22 @@ namespace std::execution {
               __mbind_front_q<__decayed_tuple, set_error_t>,
               __bound_values_t>>;
 
+#if defined(__clangc__)
+        // According to http://eel.is/c++draft/class.member.lookup#6
+        //
+        // [class.member.lookup]/p6: "If it [the result of the search]
+        // differs from the result of a search in T for N from
+        // immediately after the class-specifier of T, the program is
+        // ill-formed, no diagnostic required."  A class definition is
+        // not allowed to change the meaning of a name that was already
+        // used earlier in the class definition.
+        //
+        // this program is ill-formed. clang should reject this, but it does not cause its broken:
+        // https://bugs.llvm.org/show_bug.cgi?id=51934
         using __receiver = __receiver<__sh_state>;
+#else
+        using __receiver = __receiver_<__sh_state>;
+#endif
 
         in_place_stop_source __stop_source_{};
         connect_result_t<_Sender, __receiver> __op_state2_;
@@ -2334,10 +2376,30 @@ namespace std::execution {
         }
       };
 
+#if !defined(__clangc__)
+    template <class T>
+    using __sh_state_ = __sh_state<T>;
+#endif
+
     template <class _SenderId>
       class __sender {
         using _Sender = __t<_SenderId>;
+#if defined(__clangc__)
+        // According to http://eel.is/c++draft/class.member.lookup#6
+        //
+        // [class.member.lookup]/p6: "If it [the result of the search]
+        // differs from the result of a search in T for N from
+        // immediately after the class-specifier of T, the program is
+        // ill-formed, no diagnostic required."  A class definition is
+        // not allowed to change the meaning of a name that was already
+        // used earlier in the class definition.
+        //
+        // this program is ill-formed. clang should reject this, but it does not cause its broken:
+        // https://bugs.llvm.org/show_bug.cgi?id=51934
         using __sh_state = __sh_state<_SenderId>;
+#else
+        using __sh_state = __sh_state_<_SenderId>;
+#endif
         template <class _Receiver>
           using __operation = __operation<_SenderId, __x<remove_cvref_t<_Receiver>>>;
 
@@ -2948,16 +3010,40 @@ namespace std::execution {
     } // namespace __impl
 
     class run_loop {
+
+#if !defined(__clangc__)
+      template<class... Ts>
+      using completion_signatures_ = completion_signatures<Ts...>;
+#endif
       template <class>
         friend class __impl::__operation;
      public:
       class __scheduler {
         struct __schedule_task {
+#if defined(__clangc__)
+        // According to http://eel.is/c++draft/class.member.lookup#6
+        //
+        // [class.member.lookup]/p6: "If it [the result of the search]
+        // differs from the result of a search in T for N from
+        // immediately after the class-specifier of T, the program is
+        // ill-formed, no diagnostic required."  A class definition is
+        // not allowed to change the meaning of a name that was already
+        // used earlier in the class definition.
+        //
+        // this program is ill-formed. clang should reject this, but it does not cause its broken:
+        // https://bugs.llvm.org/show_bug.cgi?id=51934
           using completion_signatures =
             completion_signatures<
               set_value_t(),
               set_error_t(exception_ptr),
               set_stopped_t()>;
+#else
+          using completion_signatures =
+            completion_signatures_<
+              set_value_t(),
+              set_error_t(exception_ptr),
+              set_stopped_t()>;
+#endif
          private:
           friend __scheduler;
 
