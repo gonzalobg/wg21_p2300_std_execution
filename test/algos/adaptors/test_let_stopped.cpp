@@ -14,6 +14,11 @@
  * limitations under the License.
  */
 
+#if defined(__GNUC__) && !defined(__clang__)
+#include <catch2/catch.hpp>
+TEST_CASE("dummy", "dummy") {}
+#else
+
 #include <catch2/catch.hpp>
 #include <execution.hpp>
 #include <test_common/schedulers.hpp>
@@ -210,3 +215,5 @@ TEST_CASE("let_stopped can be customized", "[adaptors][let_stopped]") {
              | ex::let_stopped([] { return ex::just(std::string{"stopped"}); });
   wait_for_value(std::move(snd), std::string{"Don't stop me now"});
 }
+
+#endif
